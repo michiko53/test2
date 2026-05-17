@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>テクノホーム 退去修繕見積・発注書</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #1e293b;
+            --accent: #2563eb;
+            --row-height: 28px;
+            --print-width: 210mm;
+        }
+
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: #f1f5f9;
+            color: #334155;
+            margin: 0;
+            padding: 0;
+            line-height: 1.3;
+        }
+
+        .page-container {
+            width: var(--print-width);
+            min-height: 297mm;
+            padding: 10mm 15mm;
+            margin: 20px auto;
+            background: white;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            position: relative;
+            box-sizing: border-box;
+        }
+
+        @media print {
+            @page { size: A4; margin: 0; }
+            body { background: white; padding: 0; }
+            .page-container { 
+                margin: 0; 
+                box-shadow: none; 
+                width: 100%; 
+                min-height: 100vh;
+                padding: 10mm 15mm;
+            }
+            .no-print { display: none !important; }
+            input:focus { background-color: transparent; }
+            textarea { border: 1px solid #e2e8f0 !important; resize: none; overflow: hidden; }
+            
+            /* 印刷時に未入力の行を非表示にする */
+            .item-row.is-empty, .category-row.is-empty {
+                display: none !important;
+            }
+        }
+
+        .item-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+            margin-top: 5px;
+        }
+        .item-table th {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            color: var(--primary);
+            font-weight: 700;
+            padding: 4px 8px;
+            text-align: center;
+        }
+        .item-table td {
+            border: 1px solid #e2e8f0;
+            padding: 2px 8px;
+            height: var(--row-height);
+            vertical-align: middle;
+        }
+        .category-row {
+            background-color: #f1f5f9;
+            font-weight: bold;
+            font-size: 10px;
+        }
+
+        input, textarea {
+            width: 100%;
+            border: 1px solid transparent;
+            background: transparent;
+            font-size: inherit;
+            outline: none;
+            padding: 2px 4px;
+            border-radius: 2px;
+        }
+        input:focus { background-color: #eff6ff; border-color: #bfdbfe; }
+        .price-input { text-align: right; font-family: 'Inter', sans-serif; }
+        .qty-input { text-align: center; }
+
+        .picker-trigger {
+            border-bottom: 1px dashed #cbd5e1;
+            cursor: pointer;
+            padding: 1px 2px;
+            display: inline-block;
+            color: var(--primary);
+            width: 100%;
+        }
+        .picker-trigger:hover { 
+            background: #f0f7ff;
+            border-bottom-color: var(--accent);
+        }
+
+        /* 読み取り専用時のピッカースタイルの調整 */
+        .picker-trigger.readonly-click {
+            border-bottom-style: none;
+            cursor: default;
+        }
+        .picker-trigger.readonly-click:hover {
+            background: transparent;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(2px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+        }
+        .modal-content {
+            background: white;
+            width: 90%;
+            max-width: 450px;
+            max-height: 80vh;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+        }
+        .option-item {
+            padding: 10px 15px;
+            border-bottom: 1px solid #f1f5f9;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .option-item:hover { background: #eff6ff; color: var(--accent); }
+    </style>
+</head>
+<body>
+
+    <div class="no-print bg-slate-800 text-white p-3 sticky top-0 z-50 flex justify-between items-center">
+        <div class="flex items-center gap-3 ml-4">
+            <div class="bg-blue-500 p-1 rounded font-bold text-xs">TH</div>
+            <h1 class="text-xs font-bold uppercase tracking-wider">Estimate System Cloud v2.5</h1>
+        </div>
+
+        <div class="flex items-center gap-2 bg-slate-900/50 p-1 px-2 rounded border border-slate-700 text-xs">
+            <span class="text-slate-400 font-bold">番号から呼び出し:</span>
+            <input type="text" id="search-number-input" placeholder="TH-2024-001" class="w-28 bg-slate-800 border border-slate-600 rounded px-1.5 py-0.5 text-white focus:bg-slate-700 focus:border-blue-400 text-xs">
+            <button onclick="loadFromCloud()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded transition-all flex items-center gap-1">
+                🔍 読込
+            </button>
+            <div class="w-px h-4 bg-slate-700 mx-1"></div>
+            <button onclick="saveToCloud()" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded transition-all flex items-center gap-1">
+                💾 クラウド保存/更新
+            </button>
+        </div>
+
+        <div class="flex gap-3 mr-4">
+            <button id="main-mail-btn" onclick="sendEmail()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-bold flex items-center gap-2 transition-all">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                <span id="mail-btn-text">メール送信</span>
+            </button>
+            <button onclick="window.print()" class="px-4 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs font-bold flex items-center gap-2 border border-slate-600">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
+                PDF保存 / 印刷
+            </button>
+        </div>
+    </div>
+
+    <div class="no-print bg-white border-b border-slate-200 py-3 shadow-sm sticky top-[48px] z-40">
+        <div class="max-w-4xl mx-auto px-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <span class="text-xs font-bold text-slate-500">進捗状況 / ワークフロー:</span>
+                <span id="lock-badge" class="hidden px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded border border-amber-200">🔒 確定版ロック中（添削不可）</span>
+            </div>
+            <div class="flex items-center space-x-2 md:space-x-4">
+                <button id="btn-step1" onclick="changeStep(1)" class="px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-blue-600 text-white shadow-sm">
+                    ① 見積作成
+                </button>
+                <span class="text-slate-300 text-xs">➔</span>
+                <button id="btn-step2" onclick="changeStep(2)" class="px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
+                    ② 発注確認
+                </button>
+                <span class="text-slate-300 text-xs">➔</span>
+                <button id="btn-step3" onclick="changeStep(3)" class="px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
+                    ③ 追加修正・確定
+                </button>
+                <span class="text-slate-300 text-xs">➔</span>
+                <button id="btn-step4" onclick="changeStep(4)" class="px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
+                    ④ 請求書
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="page-container">
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <h2 id="document-title" class="text-xl font-bold text-slate-800 tracking-tight">退去修繕見積・発注書</h2>
+                <div class="flex items-center gap-2 text-[10px] text-slate-400 mt-1">
+                    <span>管理番号</span>
+                    <input type="text" id="manage-no-input" value="TH-2024-001" oninput="onManageNoInput()" class="w-36 border-b border-slate-200">
+                </div>
+            </div>
+            <div class="text-right">
+                <p id="publisher-name" class="font-bold text-sm text-slate-900">株式会社テクノホーム</p>
+                <p id="publisher-address" class="text-[9px] text-slate-500">〒134-0083 東京都江戸川区東葛西6-4-17</p>
+                <p id="publisher-tel" class="text-[9px] text-slate-500">エルプラン 3階 TEL: 03-6808-2350</p>
+            </div>
+        </div>
+
+        <div class="flex justify-between items-end mb-4 border-b-2 border-slate-800 pb-1">
+            <div class="flex items-baseline gap-2">
+                <input type="text" id="client-name-input" value="クイッククリーン" oninput="onClientNameInput()" class="text-base font-bold w-48">
+                <span class="text-xs">御中</span>
+            </div>
+            <div class="text-right text-[10px] space-y-0.5">
+                <p>発行日: <input type="text" id="current-date" class="w-20 text-right"></p>
+                <p>担当者: <span id="staff-trigger" class="picker-trigger w-20 text-right font-bold" onclick="openStaffPicker()">熊野</span></p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 border border-slate-200 mb-4 bg-slate-50/50">
+            <div class="border-r border-slate-200 p-1.5 px-3">
+                <label class="block text-[10px] font-bold text-blue-600 mb-0.5">物件名</label>
+                <div id="prop-trigger" class="picker-trigger text-xs font-bold" onclick="openPropPicker()">物件を選択してください</div>
+            </div>
+            <div class="p-1.5 px-3">
+                <label class="block text-[10px] font-bold text-blue-600 mb-0.5">号室</label>
+                <div id="unit-trigger" class="picker-trigger text-xs font-bold" onclick="openUnitPicker()">---</div>
+            </div>
+        </div>
+
+        <table class="item-table">
+            <thead>
+                <tr>
+                    <th width="50%">施工内容 / 仕様</th>
+                    <th width="10%">数量</th>
+                    <th width="15%">単価(¥)</th>
+                    <th width="25%">金額(¥)</th>
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                <tr class="category-row" id="cat-cleaning">
+                    <td colspan="4">■ クリーニング項目</td>
+                </tr>
+                <script>
+                    for(let i=1; i<=8; i++) {
+                        document.write(`
+                            <tr class="item-row is-empty" data-type="cleaning">
+                                <td><span class="picker-trigger desc-text" onclick="openItemPicker(this, 'cleaning')">項目を選択...</span></td>
+                                <td><input type="number" class="qty-input" oninput="calculate()" placeholder="0"></td>
+                                <td><input type="number" class="price-input" oninput="calculate()" placeholder="0"></td>
+                                <td class="row-total text-right font-bold pr-2">0</td>
+                            </tr>
+                        `);
+                    }
+                </script>
+                <tr class="category-row" id="cat-construction">
+                    <td colspan="4">■ 交換・取付・小工事項目</td>
+                </tr>
+                <script>
+                    for(let i=1; i<=8; i++) {
+                        document.write(`
+                            <tr class="item-row is-empty" data-type="construction">
+                                <td><span class="picker-trigger desc-text" onclick="openItemPicker(this, 'construction')">項目を選択...</span></td>
+                                <td><input type="number" class="qty-input" oninput="calculate()" placeholder="0"></td>
+                                <td><input type="number" class="price-input" oninput="calculate()" placeholder="0"></td>
+                                <td class="row-total text-right font-bold pr-2">0</td>
+                            </tr>
+                        `);
+                    }
+                </script>
+                <tr class="category-row" id="cat-others">
+                    <td colspan="4">■ その他・諸経費</td>
+                </tr>
+                <script>
+                    for(let i=1; i<=4; i++) {
+                        document.write(`
+                            <tr class="item-row is-empty" data-type="others">
+                                <td><span class="picker-trigger desc-text" onclick="openItemPicker(this, 'others')">項目を選択...</span></td>
+                                <td><input type="number" class="qty-input" oninput="calculate()" placeholder="0"></td>
+                                <td><input type="number" class="price-input" oninput="calculate()" placeholder="0"></td>
+                                <td class="row-total text-right font-bold pr-2">0</td>
+                            </tr>
+                        `);
+                    }
+                </script>
+            </tbody>
+        </table>
+
+        <div class="mt-4 flex gap-4">
+            <div class="flex-grow flex flex-col justify-between">
+                <div>
+                    <label class="text-[9px] font-bold text-slate-400 mb-1 block">備考 / 特記事項</label>
+                    <textarea id="remarks-input" class="w-full h-20 border border-slate-200 rounded p-2 text-[10px]" placeholder="特記事項があればこちらに入力してください..."></textarea>
+                </div>
+                <div id="bank-info-container" class="hidden mt-3 p-2 bg-slate-50 border border-slate-200 rounded text-[10px] space-y-0.5">
+                    <p class="font-bold text-slate-700 text-[10px] border-b pb-0.5 mb-1 flex items-center gap-1">
+                        【お振込口座情報（クリーンテック様）】
+                    </p>
+                    <p class="font-bold text-slate-900 text-[10.5px]">〇〇銀行 ××支店 普通預金： △△△△</p>
+                    <p class="text-slate-700">口座名義： クリーンテック</p>
+                </div>
+            </div>
+            <div class="w-64 space-y-1">
+                <div class="flex justify-between text-[10px] px-1 text-slate-500">
+                    <span>クリーニング 小計</span>
+                    <span id="cleaning-subtotal">¥0</span>
+                </div>
+                <div class="flex justify-between text-[10px] px-1 text-slate-500">
+                    <span>小工事・その他 小計</span>
+                    <span id="construction-subtotal">¥0</span>
+                </div>
+                <div class="flex justify-between text-[10px] px-1 text-slate-500">
+                    <span>諸経費・他 小計</span>
+                    <span id="others-subtotal">¥0</span>
+                </div>
+                <div class="flex justify-between text-[10px] px-1 text-slate-500 pt-1 border-t">
+                    <span>消費税 (10%)</span>
+                    <span id="tax-amount">¥0</span>
+                </div>
+                <div class="flex justify-between items-center bg-slate-900 text-white p-2 rounded mt-2">
+                    <span class="text-[10px] font-bold">合計金額(税込)</span>
+                    <span id="grand-total" class="text-base font-bold italic">¥0</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="absolute bottom-6 left-15 right-15 flex justify-between items-center text-[8px] text-slate-300 border-t border-slate-100 pt-2 w-[calc(100%-30mm)]">
+            <span>© TECHNO HOME Co., Ltd.</span>
+            <span id="notice-bottom-text">※本状は見積書兼発注依頼書としてご利用いただけます。</span>
+        </div>
+    </div>
+
+    <div id="picker-modal" class="modal-overlay" onclick="closePicker()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="bg-slate-800 text-white p-3 flex justify-between items-center">
+                <h3 id="picker-title" class="font-bold text-xs">選択してください</h3>
+                <button onclick="closePicker()" class="text-white opacity-50 hover:opacity-100">✕</button>
+            </div>
+            <div id="option-list" class="flex-grow overflow-y-auto"></div>
+        </div>
+    </div>
+
+    <script>
+        // 設定用：ご提示いただいたGASのウェブアプリURLを完全に組み込みました
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw6pMfDcWq5ZiS3Cg17CLAWJefuP7qeZeugbLO-lLSQYm3E-P1CHWoIfFNipw6fBeRQ/exec";
+
+        // 物件マスタ
+        const properties = ["デュラベル", "テクノス浦安 S棟", "アビタシオンf", "Ferio", "La Luce", "クレアフォート", "リアル永代", "ELLE PLAN", "プレスタンテ ウィステリア", "TECHNOUS22"];
+        const unitsMap = {
+            "デュラベル": ["101", "102", "201", "202", "301", "302"],
+            "Ferio": ["201", "202", "203", "301", "302", "303", "401", "402", "403"],
+            "プレスタンテ ウィステリア": ["101", "201", "202", "203", "205", "206", "301", "302", "303", "305", "306", "401", "402", "403", "405", "406", "501", "502", "503", "505", "506", "601", "602", "603", "605", "606"],
+            "TECHNOUS22": ["1A", "1B", "1C", "2A", "2B", "2C", "3A", "3B", "3C", "3D", "4A", "4B", "4C"]
+        };
+        const staffList = ["熊野", "小寺", "吉橋", "海老名", "中嶋"];
+        
+        // クリーニング・補修マスタ（24項目）
+        const cleaningItems = [
+            { name: "ルームクリーニング ～25㎡", price: 20000 },
+            { name: "ルームクリーニング ～35㎡", price: 28000 },
+            { name: "ルームクリーニング ロフト付", price: 33000 },
+            { name: "ルームクリーニング ～40㎡", price: 36000 },
+            { name: "ルームクリーニング ～50㎡", price: 42000 },
+            { name: "ルームクリーニング 55㎡", price: 50000 },
+            { name: "ルームクリーニング 90㎡", price: 80000 },
+            { name: "ペット割り増しクリーニング", price: 0 },
+            { name: "エアコンクリーニング", price: 9000 },
+            { name: "お風呂換気扇クリーニング", price: 3000 },
+            { name: "トイレ、洗面室換気扇クリーニング", price: 1500 },
+            { name: "お風呂鏡研磨", price: 1500 },
+            { name: "クロス張替", price: 1200 },
+            { name: "クロス部分クリーニング、補修", price: 2000 },
+            { name: "クロス入角部分コーク入れ、補修", price: 500 },
+            { name: "カーテン洗濯", price: 1200 },
+            { name: "洗面台 ヘアーキャッチ", price: 890 },
+            { name: "フローリング プロ補修", price: 20000 },
+            { name: "フローリング 部分簡易補修", price: 1000 },
+            { name: "フローリング WAX仕上げ", price: 3000 },
+            { name: "扉 プロ補修", price: 20000 },
+            { name: "床 ポリッシャー洗浄", price: 8000 },
+            { name: "単品 お風呂、換気扇クリーニング", price: 15000 },
+            { name: "ガスコンロ ステンレス板修繕", price: 9000 }
+        ];
+
+        // 交換・取付・小工事マスタ（25項目）
+        const constructionItems = [
+            { name: "キッチン 混合水栓用泡沫器", price: 500 },
+            { name: "キッチン 混合水栓交換", price: 20000 },
+            { name: "洗面台 750×1780", price: 48000 },
+            { name: "温水洗浄便座取り付け", price: 23000 },
+            { name: "火災報知器", price: 3000 },
+            { name: "TVモニターホン取り付け", price: 26000 },
+            { name: "室内物干し 吊り下げ式", price: 10500 },
+            { name: "洗濯水栓 ワンタッチノズル", price: 2800 },
+            { name: "トイレ換気扇交換", price: 12000 },
+            { name: "単4電池", price: 100 },
+            { name: "単3電池", price: 100 },
+            { name: "ボタン電池", price: 500 },
+            { name: "エアコン ルーバー交換", price: 1900 },
+            { name: "カーテンレール部品 ランナー", price: 80 },
+            { name: "カーテンレール部品 マグネットランナー", price: 520 },
+            { name: "カーテンレール 1m", price: 1400 },
+            { name: "カーテンレール 2m", price: 3000 },
+            { name: "洗濯機置場 エルボ、バンド付き", price: 1200 },
+            { name: "洗濯機置場 エルボバンド", price: 100 },
+            { name: "クローゼット 蝶番交換", price: 3000 },
+            { name: "カーテン ふさかけ", price: 300 },
+            { name: "害虫駆除散布", price: 8000 },
+            { name: "LED照明球 LDA6L-G-E17", price: 3000 },
+            { name: "照明 直管20W グロー球込み", price: 1200 },
+            { name: "照明 ボール球60W", price: 800 }
+        ];
+
+        // その他・諸経費
+        const otherItems = [
+            { name: "近慢駐車場代", price: 0 },
+            { name: "現場諸経費", price: 0 },
+            { name: "廃棄物運搬処理費", price: 5500 },
+            { name: "出張費", price: 3300 },
+            { name: "緊急対応費", price: 5500 }
+        ];
+
+        let selectedProp = "";
+        let currentStep = 1; 
+        let baseManageNo = "TH-2024-001"; 
+        let originalClientName = "クイッククリーン"; 
+        let isDataLocked = false; 
+
+        window.onload = () => {
+            const d = new Date();
+            document.getElementById('current-date').value = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
+            const initialVal = document.getElementById('manage-no-input').value;
+            setBaseManageNo(initialVal);
+            originalClientName = document.getElementById('client-name-input').value;
+            calculate();
+        };
+
+        function onClientNameInput() {
+            if (!isDataLocked && currentStep !== 4) {
+                originalClientName = document.getElementById('client-name-input').value;
+            }
+        }
+
+        function onManageNoInput() {
+            if (!isDataLocked) {
+                const fullVal = document.getElementById('manage-no-input').value;
+                setBaseManageNo(fullVal);
+            }
+        }
+
+        function setBaseManageNo(val) {
+            baseManageNo = val.replace(/-ORD$/, '').replace(/-INV$/, '');
+        }
+
+        function changeStep(step) {
+            if (isDataLocked && (step === 1 || step === 2)) {
+                alert("🔒 このデータは確定版としてロックされているため、見積作成・発注確認モードへの編集・変更はできません。");
+                return;
+            }
+
+            currentStep = step;
+
+            for (let i = 1; i <= 4; i++) {
+                const btn = document.getElementById(`btn-step${i}`);
+                if (i === step) {
+                    btn.className = "px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-blue-600 text-white shadow-sm";
+                } else {
+                    btn.className = "px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200";
+                }
+            }
+
+            const shouldLock = isDataLocked || (step === 3 || step === 4);
+            setInputReadOnlyState(shouldLock);
+
+            const titleEl = document.getElementById('document-title');
+            const noticeEl = document.getElementById('notice-bottom-text');
+            const manageNoInput = document.getElementById('manage-no-input');
+            const bankContainer = document.getElementById('bank-info-container');
+            const mailBtnText = document.getElementById('mail-btn-text');
+            const clientNameInput = document.getElementById('client-name-input');
+            const publisherName = document.getElementById('publisher-name');
+            const publisherAddress = document.getElementById('publisher-address');
+            const publisherTel = document.getElementById('publisher-tel');
+
+            if (step === 1) {
+                titleEl.innerText = "退去修繕見積・発注書";
+                noticeEl.innerText = "※本状は見積書兼発注依頼書としてご利用いただけます。";
+                manageNoInput.value = baseManageNo;
+                clientNameInput.value = originalClientName;
+                publisherName.innerText = "株式会社テクノホーム";
+                publisherAddress.classList.remove('hidden');
+                publisherTel.classList.remove('hidden');
+                bankContainer.classList.add('hidden');
+                mailBtnText.innerText = "メール送信";
+            } 
+            else if (step === 2) {
+                titleEl.innerText = "退去修繕見積・発注確認書";
+                noticeEl.innerText = "※本状は発注確認書としてご利用いただけます。";
+                manageNoInput.value = baseManageNo;
+                clientNameInput.value = originalClientName;
+                publisherName.innerText = "株式会社テクノホーム";
+                publisherAddress.classList.remove('hidden');
+                publisherTel.classList.remove('hidden');
+                bankContainer.classList.add('hidden');
+                mailBtnText.innerText = "発注確認メール送信";
+            } 
+            else if (step === 3) {
+                titleEl.innerText = "修繕発注書";
+                noticeEl.innerText = "※本状は最終確定された修繕発注書となります。";
+                manageNoInput.value = baseManageNo + "-ORD";
+                clientNameInput.value = originalClientName;
+                publisherName.innerText = "株式会社テクノホーム";
+                publisherAddress.classList.remove('hidden');
+                publisherTel.classList.remove('hidden');
+                bankContainer.classList.add('hidden');
+                mailBtnText.innerText = "確定発注メール送信";
+            } 
+            else if (step === 4) {
+                titleEl.innerText = "修繕請求書";
+                noticeEl.innerText = "※本状は修繕請求書となります。";
+                manageNoInput.value = baseManageNo + "-INV";
+                clientNameInput.value = "株式会社 テクノホーム";
+                publisherName.innerText = "クリーンテック";
+                publisherAddress.classList.add('hidden'); 
+                publisherTel.classList.add('hidden');
+                bankContainer.classList.remove('hidden'); 
+                mailBtnText.innerText = "請求送付メール送信";
+            }
+
+            calculate();
+        }
+
+        function setInputReadOnlyState(readOnly) {
+            document.getElementById('client-name-input').readOnly = readOnly;
+            document.getElementById('manage-no-input').readOnly = readOnly;
+            document.getElementById('current-date').readOnly = readOnly;
+            
+            document.querySelectorAll('.qty-input, .price-input').forEach(input => {
+                input.readOnly = readOnly;
+                if (readOnly) {
+                    input.classList.add('bg-slate-50/50');
+                } else {
+                    input.classList.remove('bg-slate-50/50');
+                }
+            });
+
+            const remarks = document.getElementById('remarks-input');
+            remarks.readOnly = readOnly;
+            if (readOnly) {
+                remarks.classList.add('bg-slate-50/50');
+            } else {
+                remarks.classList.remove('bg-slate-50/50');
+            }
+
+            const triggers = document.querySelectorAll('.picker-trigger');
+            triggers.forEach(trigger => {
+                if (readOnly) {
+                    trigger.classList.add('readonly-click');
+                } else {
+                    trigger.classList.remove('readonly-click');
+                }
+            });
+
+            const badge = document.getElementById('lock-badge');
+            if (isDataLocked) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function saveToCloud() {
+            if (GAS_WEB_APP_URL.includes("AKfycbz_XXXXXXXXXX")) {
+                alert("⚠️ 設定が未完了です。HTMLコード内の「GAS_WEB_APP_URL」をご自身のURLに書き換えてください。");
+                return;
+            }
+
+            const items = [];
+            document.querySelectorAll('.item-row').forEach(row => {
+                items.push({
+                    type: row.dataset.type,
+                    desc: row.querySelector('.desc-text').innerText,
+                    qty: row.querySelector('.qty-input').value,
+                    price: row.querySelector('.price-input').value
+                });
+            });
+
+            const payload = {
+                action: "save",
+                manageNo: document.getElementById('manage-no-input').value,
+                step: currentStep,
+                clientName: originalClientName,
+                date: document.getElementById('current-date').value,
+                staff: document.getElementById('staff-trigger').innerText,
+                prop: document.getElementById('prop-trigger').innerText,
+                unit: document.getElementById('unit-trigger').innerText,
+                remarks: document.getElementById('remarks-input').value,
+                items: items
+            };
+
+            fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(res => {
+                if(res.success) {
+                    alert("💾 クラウド（スプレッドシート）への保存・同期に成功しました！");
+                } else {
+                    alert("❌ 保存失敗: " + res.error);
+                }
+            })
+            .catch(err => alert("通信エラーが発生しました。インターネット接続とURL設定を確認してください: " + err));
+        }
+
+        function loadFromCloud() {
+            const searchNo = document.getElementById('search-number-input').value.trim();
+            if (!searchNo) {
+                alert("呼び出したい見積書/発注書の管理番号を入力してください。");
+                return;
+            }
+
+            if (GAS_WEB_APP_URL.includes("AKfycbz_XXXXXXXXXX")) {
+                alert("⚠️ 設定が未完了です。HTMLコード内の「GAS_WEB_APP_URL」をご自身のURLに書き換えてください。");
+                return;
+            }
+
+            fetch(GAS_WEB_APP_URL, {
+                method: "POST",
+                body: JSON.stringify({ action: "load", manageNo: searchNo })
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success) {
+                    const data = res.data;
+                    
+                    isDataLocked = false;
+                    setInputReadOnlyState(false);
+
+                    document.getElementById('manage-no-input').value = data.manageNo;
+                    setBaseManageNo(data.manageNo);
+                    originalClientName = data.clientName;
+                    document.getElementById('client-name-input').value = data.clientName;
+                    document.getElementById('current-date').value = data.date;
+                    document.getElementById('staff-trigger').innerText = data.staff;
+                    document.getElementById('prop-trigger').innerText = data.prop;
+                    selectedProp = data.prop;
+                    document.getElementById('unit-trigger').innerText = data.unit;
+                    document.getElementById('remarks-input').value = data.remarks;
+
+                    const rows = document.querySelectorAll('.item-row');
+                    rows.forEach(row => {
+                        row.querySelector('.desc-text').innerText = "項目を選択...";
+                        row.querySelector('.qty-input').value = "";
+                        row.querySelector('.price-input').value = "";
+                    });
+
+                    let cleanIdx = 0;     
+                    let constIdx = 8;     
+                    let otherIdx = 16;    
+
+                    data.items.forEach(item => {
+                        let targetRow = null;
+                        if (item.type === 'cleaning' && cleanIdx < 8) {
+                            targetRow = rows[cleanIdx++];
+                        } else if (item.type === 'construction' && constIdx < 16) {
+                            targetRow = rows[constIdx++];
+                        } else if (item.type === 'others' && otherIdx < 20) {
+                            targetRow = rows[otherIdx++];
+                        }
+
+                        if (targetRow && item.desc !== "項目を選択...") {
+                            targetRow.querySelector('.desc-text').innerText = item.desc;
+                            targetRow.querySelector('.qty-input').value = item.qty;
+                            targetRow.querySelector('.price-input').value = item.price;
+                        }
+                    });
+
+                    if (data.step === 3 || data.step === 4) {
+                        isDataLocked = true;
+                    }
+
+                    changeStep(data.step);
+                    alert(`🔍 管理番号「${data.manageNo}」をデータベースから正常に呼び出しました。`);
+                } else {
+                    alert("❌ 見つかりませんでした: " + res.message);
+                }
+            })
+            .catch(err => alert("通信エラーが発生しました: " + err));
+        }
+
+        function calculate() {
+            let subClean = 0, subConst = 0, subOthers = 0;
+            let counts = { cleaning: 0, construction: 0, others: 0 };
+
+            document.querySelectorAll('.item-row').forEach(row => {
+                const desc = row.querySelector('.desc-text').innerText;
+                const q = parseFloat(row.querySelector('.qty-input').value) || 0;
+                const p = parseFloat(row.querySelector('.price-input').value) || 0;
+                const total = q * p;
+                
+                row.querySelector('.row-total').innerText = total.toLocaleString();
+                
+                const type = row.dataset.type;
+                
+                if ((desc === "項目を選択..." || desc === "") && q === 0 && p === 0) {
+                    row.classList.add('is-empty');
+                } else {
+                    row.classList.remove('is-empty');
+                    counts[type]++;
+                }
+
+                if(type === 'cleaning') subClean += total;
+                else if(type === 'construction') subConst += total;
+                else subOthers += total;
+            });
+
+            if(counts.cleaning === 0) document.getElementById('cat-cleaning').classList.add('is-empty');
+            else document.getElementById('cat-cleaning').classList.remove('is-empty');
+            
+            if(counts.construction === 0) document.getElementById('cat-construction').classList.add('is-empty');
+            else document.getElementById('cat-construction').classList.remove('is-empty');
+            
+            if(counts.others === 0) document.getElementById('cat-others').classList.add('is-empty');
+            else document.getElementById('cat-others').classList.remove('is-empty');
+
+            const total = subClean + subConst + subOthers;
+            const tax = Math.floor(total * 0.1);
+            document.getElementById('cleaning-subtotal').innerText = `¥${subClean.toLocaleString()}`;
+            document.getElementById('construction-subtotal').innerText = `¥${subConst.toLocaleString()}`;
+            document.getElementById('others-subtotal').innerText = `¥${subOthers.toLocaleString()}`;
+            document.getElementById('tax-amount').innerText = `¥${tax.toLocaleString()}`;
+            document.getElementById('grand-total').innerText = `¥${(total + tax).toLocaleString()}`;
+        }
+
+        function setupPicker(title, options, onSelect) {
+            if (isDataLocked || currentStep === 3 || currentStep === 4) return;
+
+            document.getElementById('picker-title').innerText = title;
+            const list = document.getElementById('option-list');
+            list.innerHTML = '';
+            options.forEach(opt => {
+                const div = document.createElement('div');
+                div.className = 'option-item';
+                div.innerHTML = `<span>${opt.name || opt}</span> <span class="text-slate-400">${opt.price ? '¥'+opt.price.toLocaleString() : ''}</span>`;
+                div.onclick = () => { onSelect(opt); closePicker(); };
+                list.appendChild(div);
+            });
+            document.getElementById('picker-modal').style.display = 'flex';
+        }
+
+        function openPropPicker() {
+            setupPicker("物件名を選択", properties.map(p => ({name: p})), (item) => {
+                selectedProp = item.name;
+                document.getElementById('prop-trigger').innerText = item.name;
+                document.getElementById('unit-trigger').innerText = "号室を選択...";
+            });
+        }
+
+        function openUnitPicker() {
+            if(!selectedProp) return;
+            const units = unitsMap[selectedProp] || ["101", "102", "201", "202"];
+            setupPicker(`${selectedProp} 号室`, units.map(u => ({name: u})), (item) => {
+                document.getElementById('unit-trigger').innerText = item.name;
+            });
+        }
+
+        function openStaffPicker() {
+            setupPicker("担当者を選択", staffList.map(s => ({name: s})), (item) => {
+                document.getElementById('staff-trigger').innerText = item.name;
+            });
+        }
+
+        function openItemPicker(el, type) {
+            let data = [];
+            if(type === 'cleaning') data = cleaningItems;
+            else if(type === 'construction') data = constructionItems;
+            else data = otherItems;
+
+            setupPicker("施工項目を選択", data, (item) => {
+                el.innerText = item.name;
+                const row = el.closest('tr');
+                row.querySelector('.qty-input').value = 1;
+                row.querySelector('.price-input').value = item.price;
+                calculate();
+            });
+        }
+
+        function closePicker() { document.getElementById('picker-modal').style.display = 'none'; }
+
+        function sendEmail() {
+            const prop = document.getElementById('prop-trigger').innerText;
+            const unit = document.getElementById('unit-trigger').innerText;
+            const total = document.getElementById('grand-total').innerText;
+            const client = document.getElementById('client-name-input').value;
+            const manageNo = document.getElementById('manage-no-input').value;
+            
+            let subject = "";
+            let body = "";
+
+            if (currentStep === 1) {
+                subject = `【テクノホーム】退去修繕見積（管理番号：${manageNo}）：${prop} ${unit}号室`;
+                body = `${client} 御中\n\nお世話になっております。テクノホームです。\n修繕見積を作成しましたのでお送りします。\n\n物件：${prop} ${unit}\n管理番号：${manageNo}\n見積金額(税込)：${total}\n\n※詳細は添付のPDFをご確認ください（手動でPDFを添付してください）。`;
+            } 
+            else if (currentStep === 2) {
+                subject = `【テクノホーム】退去修繕発注確認依頼（管理番号：${manageNo}）：${prop} ${unit}号室`;
+                body = `${client} 御中\n\nお世話になっております。テクノホームです。\n作成しました修繕見積の内容についてご確認・発注の確認をお願いしたくご連絡いたしました。\n本メールにて内容に相違なければ、そのまま発注のご返信をお願いいたします。\n\n物件：${prop} ${unit}\n管理番号：${manageNo}\n合計金額(税込)：${total}\n\n※お見積書詳細はお手数ですが、添付のPDF（手動でPDFを添付）をご確認ください。`;
+            } 
+            else if (currentStep === 3) {
+                subject = `【テクノホーム】修繕確定発注書送付（管理番号：${manageNo}）：${prop} ${unit}号室`;
+                body = `${client} 御中\n\nお世話になっております。テクノホームです。\n追加・修正内容を反映した、最終の「修繕発注書」が確定いたしましたので送付いたします。\nこれより実務工事の手配に移ります。\n\n物件：${prop} ${unit}\n管理番号：${manageNo}\n最終金額(税込)：${total}\n\n※内容詳細は添付の確定発注書PDF（手動でPDFを添付）をご参照ください。`;
+            } 
+            else if (currentStep === 4) {
+                subject = `【クリーンテック】修繕請求書送付（管理番号：${manageNo}）：${prop} ${unit}号室`;
+                body = `${client} 御中\n\nお世話になっております。クリーンテックです。\n修繕工事が完了いたしましたので、請求書を送付させていただきます。\n何卒よろしくお願い申し上げます。\n\n物件：${prop} ${unit}\n管理番号：${manageNo}\n請求金額(税込)：${total}\n\n※お振込口座情報は、添付の請求書PDF（手動でPDFを添付）または画面下部に記載のお振込口座をご確認ください。`;
+            }
+
+            window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+        }
+    </script>
+</body>
+</html>
