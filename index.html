@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>テクノホーム 退去修繕見積・発注書</title>
+    
+    <!-- ホーム画面追加時（iOS/Android等）のカスタムアイコン設定 -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180' width='180' height='180'><defs><linearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%232563eb'/><stop offset='100%25' stop-color='%230d9488'/></linearGradient></defs><rect width='180' height='180' rx='40' fill='url(%23grad)'/><path d='M45 105 L90 65 L135 105 L135 140 A 5 5 0 0 1 130 145 L50 145 A 5 5 0 0 1 45 140 Z' fill='none' stroke='white' stroke-width='8' stroke-linejoin='round'/><path d='M75 145 L75 110 L105 110 L105 145' fill='none' stroke='white' stroke-width='8' stroke-linejoin='round'/><path d='M65 90 L65 140' fill='none' stroke='white' stroke-dasharray='1 12' stroke-linecap='round' stroke-width='10' opacity='0.2'/><path d='M115 90 L115 140' fill='none' stroke='white' stroke-dasharray='1 12' stroke-linecap='round' stroke-width='10' opacity='0.2'/><path d='M65 75 L115 75' fill='none' stroke='white' stroke-width='10' stroke-linecap='round'/><path d='M90 45 L90 105' fill='none' stroke='white' stroke-width='10' stroke-linecap='round'/><path d='M30 45 L40 45 L40 55 L30 55 Z' fill='%2367e8f9' transform='rotate(15 35 50)'/><path d='M140 35 L148 45 L140 55 L132 45 Z' fill='%2367e8f9'/><circle cx='150' cy='75' r='6' fill='%2367e8f9'/><circle cx='35' cy='115' r='4' fill='%2367e8f9'/></svg>">
+    
+    <!-- ブラウザタブ用ファビコン（SVG形式） -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='grad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' stop-color='%232563eb'/><stop offset='100%25' stop-color='%230d9488'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='url(%23grad)'/><path d='M25 60 L50 38 L75 60 L75 80 A 3 3 0 0 1 72 83 L28 83 A 3 3 0 0 1 25 80 Z' fill='none' stroke='white' stroke-width='5' stroke-linejoin='round'/><path d='M42 83 L42 62 L58 62 L58 83' fill='none' stroke='white' stroke-width='5' stroke-linejoin='round'/><path d='M36 44 L64 44' fill='none' stroke='white' stroke-width='6' stroke-linecap='round'/><path d='M50 26 L50 62' fill='none' stroke='white' stroke-width='6' stroke-linecap='round'/><path d='M20 25 L25 30 L20 35 L15 30 Z' fill='%2367e8f9'/><path d='M80 20 L84 25 L80 30 L76 25 Z' fill='%2367e8f9'/><circle cx='82' cy='45' r='3.5' fill='%2367e8f9'/></svg>">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -152,12 +159,14 @@
 </head>
 <body>
 
+    <!-- 操作バー -->
     <div class="no-print bg-slate-800 text-white p-3 sticky top-0 z-50 flex justify-between items-center">
         <div class="flex items-center gap-3 ml-4">
             <div class="bg-blue-500 p-1 rounded font-bold text-xs">TH</div>
             <h1 class="text-xs font-bold uppercase tracking-wider">Estimate System Cloud v2.5</h1>
         </div>
 
+        <!-- データベース連携ボタン（中央配置） -->
         <div class="flex items-center gap-2 bg-slate-900/50 p-1 px-2 rounded border border-slate-700 text-xs">
             <span class="text-slate-400 font-bold">番号から呼び出し:</span>
             <input type="text" id="search-number-input" placeholder="TH-2024-001" class="w-28 bg-slate-800 border border-slate-600 rounded px-1.5 py-0.5 text-white focus:bg-slate-700 focus:border-blue-400 text-xs">
@@ -175,13 +184,10 @@
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
                 <span id="mail-btn-text">メール送信</span>
             </button>
-            <button onclick="window.print()" class="px-4 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded text-xs font-bold flex items-center gap-2 border border-slate-600">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect width="12" height="8" x="6" y="14"/></svg>
-                PDF保存 / 印刷
-            </button>
         </div>
     </div>
 
+    <!-- 進捗ステータスバー（印刷非表示） -->
     <div class="no-print bg-white border-b border-slate-200 py-3 shadow-sm sticky top-[48px] z-40">
         <div class="max-w-4xl mx-auto px-4 flex justify-between items-center">
             <div class="flex items-center gap-2">
@@ -190,25 +196,22 @@
             </div>
             <div class="flex items-center space-x-2 md:space-x-4">
                 <button id="btn-step1" onclick="changeStep(1)" class="px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-blue-600 text-white shadow-sm">
-                    ① 見積作成
+                    ① 見積書作成
                 </button>
                 <span class="text-slate-300 text-xs">➔</span>
                 <button id="btn-step2" onclick="changeStep(2)" class="px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
-                    ② 発注確認
+                    ② 修正
                 </button>
                 <span class="text-slate-300 text-xs">➔</span>
                 <button id="btn-step3" onclick="changeStep(3)" class="px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
-                    ③ 追加修正・確定
-                </button>
-                <span class="text-slate-300 text-xs">➔</span>
-                <button id="btn-step4" onclick="changeStep(4)" class="px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-slate-100 text-slate-600 hover:bg-slate-200">
-                    ④ 請求書
+                    ③ 請求書作成(確定)
                 </button>
             </div>
         </div>
     </div>
 
     <div class="page-container">
+        <!-- ロゴ・タイトル -->
         <div class="flex justify-between items-start mb-4">
             <div>
                 <h2 id="document-title" class="text-xl font-bold text-slate-800 tracking-tight">退去修繕見積・発注書</h2>
@@ -224,6 +227,7 @@
             </div>
         </div>
 
+        <!-- 宛名と日付 -->
         <div class="flex justify-between items-end mb-4 border-b-2 border-slate-800 pb-1">
             <div class="flex items-baseline gap-2">
                 <input type="text" id="client-name-input" value="クイッククリーン" oninput="onClientNameInput()" class="text-base font-bold w-48">
@@ -235,6 +239,7 @@
             </div>
         </div>
 
+        <!-- 物件情報 -->
         <div class="grid grid-cols-2 border border-slate-200 mb-4 bg-slate-50/50">
             <div class="border-r border-slate-200 p-1.5 px-3">
                 <label class="block text-[10px] font-bold text-blue-600 mb-0.5">物件名</label>
@@ -246,18 +251,20 @@
             </div>
         </div>
 
+        <!-- 明細テーブル -->
         <table class="item-table">
             <thead>
                 <tr>
-                    <th width="50%">施工内容 / 仕様</th>
+                    <th width="45%">施工内容 / 仕様</th>
                     <th width="10%">数量</th>
                     <th width="15%">単価(¥)</th>
-                    <th width="25%">金額(¥)</th>
+                    <th width="20%">金額(¥)</th>
+                    <th width="10%" class="no-print">操作</th>
                 </tr>
             </thead>
             <tbody id="table-body">
                 <tr class="category-row" id="cat-cleaning">
-                    <td colspan="4">■ クリーニング項目</td>
+                    <td colspan="5">■ クリーニング項目</td>
                 </tr>
                 <script>
                     for(let i=1; i<=8; i++) {
@@ -267,12 +274,13 @@
                                 <td><input type="number" class="qty-input" oninput="calculate()" placeholder="0"></td>
                                 <td><input type="number" class="price-input" oninput="calculate()" placeholder="0"></td>
                                 <td class="row-total text-right font-bold pr-2">0</td>
+                                <td class="text-center no-print"><button onclick="clearRow(this)" class="row-clear-btn px-2 py-0.5 text-slate-400 hover:text-red-500 font-bold transition-colors">✕</button></td>
                             </tr>
                         `);
                     }
                 </script>
                 <tr class="category-row" id="cat-construction">
-                    <td colspan="4">■ 交換・取付・小工事項目</td>
+                    <td colspan="5">■ 交換・取付・小工事項目</td>
                 </tr>
                 <script>
                     for(let i=1; i<=8; i++) {
@@ -282,12 +290,13 @@
                                 <td><input type="number" class="qty-input" oninput="calculate()" placeholder="0"></td>
                                 <td><input type="number" class="price-input" oninput="calculate()" placeholder="0"></td>
                                 <td class="row-total text-right font-bold pr-2">0</td>
+                                <td class="text-center no-print"><button onclick="clearRow(this)" class="row-clear-btn px-2 py-0.5 text-slate-400 hover:text-red-500 font-bold transition-colors">✕</button></td>
                             </tr>
                         `);
                     }
                 </script>
                 <tr class="category-row" id="cat-others">
-                    <td colspan="4">■ その他・諸経費</td>
+                    <td colspan="5">■ その他・諸経費</td>
                 </tr>
                 <script>
                     for(let i=1; i<=4; i++) {
@@ -297,6 +306,7 @@
                                 <td><input type="number" class="qty-input" oninput="calculate()" placeholder="0"></td>
                                 <td><input type="number" class="price-input" oninput="calculate()" placeholder="0"></td>
                                 <td class="row-total text-right font-bold pr-2">0</td>
+                                <td class="text-center no-print"><button onclick="clearRow(this)" class="row-clear-btn px-2 py-0.5 text-slate-400 hover:text-red-500 font-bold transition-colors">✕</button></td>
                             </tr>
                         `);
                     }
@@ -304,12 +314,14 @@
             </tbody>
         </table>
 
+        <!-- 合計・備考 -->
         <div class="mt-4 flex gap-4">
             <div class="flex-grow flex flex-col justify-between">
                 <div>
                     <label class="text-[9px] font-bold text-slate-400 mb-1 block">備考 / 特記事項</label>
                     <textarea id="remarks-input" class="w-full h-20 border border-slate-200 rounded p-2 text-[10px]" placeholder="特記事項があればこちらに入力してください..."></textarea>
                 </div>
+                <!-- 請求先お振込口座情報エリア (請求書モード時のみ動的に表示) -->
                 <div id="bank-info-container" class="hidden mt-3 p-2 bg-slate-50 border border-slate-200 rounded text-[10px] space-y-0.5">
                     <p class="font-bold text-slate-700 text-[10px] border-b pb-0.5 mb-1 flex items-center gap-1">
                         【お振込口座情報（クリーンテック様）】
@@ -348,6 +360,7 @@
         </div>
     </div>
 
+    <!-- モーダル -->
     <div id="picker-modal" class="modal-overlay" onclick="closePicker()">
         <div class="modal-content" onclick="event.stopPropagation()">
             <div class="bg-slate-800 text-white p-3 flex justify-between items-center">
@@ -454,7 +467,7 @@
         };
 
         function onClientNameInput() {
-            if (!isDataLocked && currentStep !== 4) {
+            if (!isDataLocked && currentStep !== 3) {
                 originalClientName = document.getElementById('client-name-input').value;
             }
         }
@@ -471,14 +484,14 @@
         }
 
         function changeStep(step) {
-            if (isDataLocked && (step === 1 || step === 2)) {
-                alert("🔒 このデータは確定版としてロックされているため、見積作成・発注確認モードへの編集・変更はできません。");
+            if (isDataLocked && step === 1) {
+                alert("🔒 このデータは確定版としてロックされているため、見積書作成モードへの編集・変更はできません。");
                 return;
             }
 
             currentStep = step;
 
-            for (let i = 1; i <= 4; i++) {
+            for (let i = 1; i <= 3; i++) {
                 const btn = document.getElementById(`btn-step${i}`);
                 if (i === step) {
                     btn.className = "px-3 py-1.5 rounded-full text-xs font-bold transition-all bg-blue-600 text-white shadow-sm";
@@ -487,7 +500,7 @@
                 }
             }
 
-            const shouldLock = isDataLocked || (step === 3 || step === 4);
+            const shouldLock = isDataLocked || (step === 3);
             setInputReadOnlyState(shouldLock);
 
             const titleEl = document.getElementById('document-title');
@@ -514,7 +527,7 @@
             else if (step === 2) {
                 titleEl.innerText = "退去修繕見積・発注確認書";
                 noticeEl.innerText = "※本状は発注確認書としてご利用いただけます。";
-                manageNoInput.value = baseManageNo;
+                manageNoInput.value = baseManageNo + "-ORD";
                 clientNameInput.value = originalClientName;
                 publisherName.innerText = "株式会社テクノホーム";
                 publisherAddress.classList.remove('hidden');
@@ -523,17 +536,6 @@
                 mailBtnText.innerText = "発注確認メール送信";
             } 
             else if (step === 3) {
-                titleEl.innerText = "修繕発注書";
-                noticeEl.innerText = "※本状は最終確定された修繕発注書となります。";
-                manageNoInput.value = baseManageNo + "-ORD";
-                clientNameInput.value = originalClientName;
-                publisherName.innerText = "株式会社テクノホーム";
-                publisherAddress.classList.remove('hidden');
-                publisherTel.classList.remove('hidden');
-                bankContainer.classList.add('hidden');
-                mailBtnText.innerText = "確定発注メール送信";
-            } 
-            else if (step === 4) {
                 titleEl.innerText = "修繕請求書";
                 noticeEl.innerText = "※本状は修繕請求書となります。";
                 manageNoInput.value = baseManageNo + "-INV";
@@ -579,12 +581,32 @@
                 }
             });
 
+            // 削除ボタンの表示制御
+            document.querySelectorAll('.row-clear-btn').forEach(btn => {
+                btn.disabled = readOnly;
+                if (readOnly) {
+                    btn.classList.add('opacity-30', 'cursor-not-allowed');
+                } else {
+                    btn.classList.remove('opacity-30', 'cursor-not-allowed');
+                }
+            });
+
             const badge = document.getElementById('lock-badge');
             if (isDataLocked) {
                 badge.classList.remove('hidden');
             } else {
                 badge.classList.add('hidden');
             }
+        }
+
+        // 指定の行データを初期化・クリアする処理
+        function clearRow(button) {
+            if (isDataLocked || currentStep === 3) return;
+            const row = button.closest('tr');
+            row.querySelector('.desc-text').innerText = "項目を選択...";
+            row.querySelector('.qty-input').value = "";
+            row.querySelector('.price-input').value = "";
+            calculate();
         }
 
         function saveToCloud() {
@@ -694,7 +716,7 @@
                         }
                     });
 
-                    if (data.step === 3 || data.step === 4) {
+                    if (data.step === 3) {
                         isDataLocked = true;
                     }
 
@@ -752,7 +774,7 @@
         }
 
         function setupPicker(title, options, onSelect) {
-            if (isDataLocked || currentStep === 3 || currentStep === 4) return;
+            if (isDataLocked || currentStep === 3) return;
 
             document.getElementById('picker-title').innerText = title;
             const list = document.getElementById('option-list');
@@ -767,6 +789,7 @@
             document.getElementById('picker-modal').style.display = 'flex';
         }
 
+        // 物件マスタ
         function openPropPicker() {
             setupPicker("物件名を選択", properties.map(p => ({name: p})), (item) => {
                 selectedProp = item.name;
@@ -783,6 +806,7 @@
             });
         }
 
+        // 担当者ピッカーを開く
         function openStaffPicker() {
             setupPicker("担当者を選択", staffList.map(s => ({name: s})), (item) => {
                 document.getElementById('staff-trigger').innerText = item.name;
@@ -821,16 +845,12 @@
                 body = `${client} 御中\n\nお世話になっております。テクノホームです。\n修繕見積を作成しましたのでお送りします。\n\n物件：${prop} ${unit}\n管理番号：${manageNo}\n見積金額(税込)：${total}\n\n※詳細は添付のPDFをご確認ください（手動でPDFを添付してください）。`;
             } 
             else if (currentStep === 2) {
-                subject = `【テクノホーム】退去修繕発注確認依頼（管理番号：${manageNo}）：${prop} ${unit}号室`;
-                body = `${client} 御中\n\nお世話になっております。テクノホームです。\n作成しました修繕見積の内容についてご確認・発注の確認をお願いしたくご連絡いたしました。\n本メールにて内容に相違なければ、そのまま発注のご返信をお願いいたします。\n\n物件：${prop} ${unit}\n管理番号：${manageNo}\n合計金額(税込)：${total}\n\n※お見積書詳細はお手数ですが、添付のPDF（手動でPDFを添付）をご確認ください。`;
+                subject = `【テクノホーム】退去修繕見積・修正確認（管理番号：${manageNo}）：${prop} ${unit}号室`;
+                body = `${client} 御中\n\nお世話になっております。テクノホームです。\n修繕見積の修正内容についてご確認をお願いいたします。\n\n物件：${prop} ${unit}\n管理番号：${manageNo}\n合計金額(税込)：${total}\n\n※お見積書詳細はお手数ですが、添付のPDF（手動でPDFを添付）をご確認ください。`;
             } 
             else if (currentStep === 3) {
-                subject = `【テクノホーム】修繕確定発注書送付（管理番号：${manageNo}）：${prop} ${unit}号室`;
-                body = `${client} 御中\n\nお世話になっております。テクノホームです。\n追加・修正内容を反映した、最終の「修繕発注書」が確定いたしましたので送付いたします。\nこれより実務工事の手配に移ります。\n\n物件：${prop} ${unit}\n管理番号：${manageNo}\n最終金額(税込)：${total}\n\n※内容詳細は添付の確定発注書PDF（手動でPDFを添付）をご参照ください。`;
-            } 
-            else if (currentStep === 4) {
                 subject = `【クリーンテック】修繕請求書送付（管理番号：${manageNo}）：${prop} ${unit}号室`;
-                body = `${client} 御中\n\nお世話になっております。クリーンテックです。\n修繕工事が完了いたしましたので、請求書を送付させていただきます。\n何卒よろしくお願い申し上げます。\n\n物件：${prop} ${unit}\n管理番号：${manageNo}\n請求金額(税込)：${total}\n\n※お振込口座情報は、添付の請求書PDF（手動でPDFを添付）または画面下部に記載のお振込口座をご確認ください。`;
+                body = `${client} 御中\n\nお世話になっております。クリーンテックです。\n修繕工事が完了いたしましたので、確定された修繕請求書を送付させていただきます。\n何卒よろしくお願い申し上げます。\n\n物件：${prop} ${unit}\n管理番号：${manageNo}\n請求金額(税込)：${total}\n\n※お振込口座情報は、添付の請求書PDF（手動でPDFを添付）または画面下部に記載のお振込口座をご確認ください。`;
             }
 
             window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
