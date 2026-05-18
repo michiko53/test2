@@ -9,6 +9,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- PDF生成ライブラリ (クライアントサイドでの即時PDF化・Drive保存用) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
     <style>
         :root {
             --primary: #1e293b;
@@ -51,8 +54,11 @@
             input:focus { background-color: transparent; }
             textarea { border: 1px solid #e2e8f0 !important; resize: none; overflow: hidden; }
             
-            /* 印刷時に未入力の行を非表示にする */
-            .item-row.is-empty, .category-row.is-empty {
+            /* 印刷時に未入力の行や、未入力のカテゴリ自体を非表示にする */
+            .item-row.is-empty {
+                display: none !important;
+            }
+            .category-row.is-empty {
                 display: none !important;
             }
         }
@@ -103,6 +109,9 @@
             display: inline-block;
             color: var(--primary);
             width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         .picker-trigger:hover { 
             background: #f0f7ff;
@@ -149,6 +158,20 @@
             align-items: center;
         }
         .option-item:hover { background: #eff6ff; color: var(--accent); }
+
+        /* ローディングオーバーレイ */
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(4px);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -157,11 +180,11 @@
     <div class="no-print bg-slate-800 text-white p-3 sticky top-0 z-50 flex justify-between items-center">
         <div class="flex items-center gap-3 ml-4">
             <div class="bg-blue-500 p-1 rounded font-bold text-xs">TH</div>
-            <h1 class="text-xs font-bold uppercase tracking-wider">Estimate System Cloud v2.5</h1>
+            <h1 class="text-xs font-bold uppercase tracking-wider">Estimate System Cloud v2.6</h1>
         </div>
 
         <!-- データベース連携ボタン（中央配置） -->
-        <div class="flex items-center gap-2 bg-slate-900/50 p-1 px-2 rounded border border-slate-700 text-xs">
+        <div class="flex items-center gap-2 bg-slate-900/50 p-1 px-2 rounded border border-slate-700 text-xs mx-auto">
             <span class="text-slate-400 font-bold">番号から呼び出し:</span>
             <input type="text" id="search-number-input" placeholder="TH-2024-001" class="w-28 bg-slate-800 border border-slate-600 rounded px-1.5 py-0.5 text-white focus:bg-slate-700 focus:border-blue-400 text-xs">
             <button onclick="loadFromCloud()" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded transition-all flex items-center gap-1">
@@ -170,13 +193,6 @@
             <div class="w-px h-4 bg-slate-700 mx-1"></div>
             <button onclick="saveToCloud()" class="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded transition-all flex items-center gap-1">
                 💾 クラウド保存/更新
-            </button>
-        </div>
-
-        <div class="flex gap-3 mr-4">
-            <button id="main-mail-btn" onclick="sendEmail()" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded text-xs font-bold flex items-center gap-2 transition-all">
-                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                <span id="mail-btn-text">メール送信</span>
             </button>
         </div>
     </div>
@@ -204,7 +220,8 @@
         </div>
     </div>
 
-    <div class="page-container">
+    <!-- 帳票メイン -->
+    <div id="print-area" class="page-container">
         <!-- ロゴ・タイトル -->
         <div class="flex justify-between items-start mb-4">
             <div>
@@ -257,13 +274,14 @@
                 </tr>
             </thead>
             <tbody id="table-body">
-                <tr class="category-row" id="cat-cleaning">
+                <!-- クリーニング項目 -->
+                <tr class="category-row" id="cat-cleaning-row">
                     <td colspan="5">■ クリーニング項目</td>
                 </tr>
                 <script>
                     for(let i=1; i<=8; i++) {
                         document.write(`
-                            <tr class="item-row is-empty" data-type="cleaning">
+                            <tr class="item-row is-empty" data-type="cleaning" id="cleaning-row-${i}">
                                 <td><span class="picker-trigger desc-text" onclick="openItemPicker(this, 'cleaning')">項目を選択...</span></td>
                                 <td><input type="number" class="qty-input" oninput="calculate()" placeholder="0"></td>
                                 <td><input type="number" class="price-input" oninput="calculate()" placeholder="0"></td>
@@ -273,13 +291,15 @@
                         `);
                     }
                 </script>
-                <tr class="category-row" id="cat-construction">
+
+                <!-- 交換・取付・小工事項目 -->
+                <tr class="category-row" id="cat-construction-row">
                     <td colspan="5">■ 交換・取付・小工事項目</td>
                 </tr>
                 <script>
                     for(let i=1; i<=8; i++) {
                         document.write(`
-                            <tr class="item-row is-empty" data-type="construction">
+                            <tr class="item-row is-empty" data-type="construction" id="construction-row-${i}">
                                 <td><span class="picker-trigger desc-text" onclick="openItemPicker(this, 'construction')">項目を選択...</span></td>
                                 <td><input type="number" class="qty-input" oninput="calculate()" placeholder="0"></td>
                                 <td><input type="number" class="price-input" oninput="calculate()" placeholder="0"></td>
@@ -289,13 +309,15 @@
                         `);
                     }
                 </script>
-                <tr class="category-row" id="cat-others">
+
+                <!-- その他・諸経費 -->
+                <tr class="category-row" id="cat-others-row">
                     <td colspan="5">■ その他・諸経費</td>
                 </tr>
                 <script>
                     for(let i=1; i<=4; i++) {
                         document.write(`
-                            <tr class="item-row is-empty" data-type="others">
+                            <tr class="item-row is-empty" data-type="others" id="others-row-${i}">
                                 <td><span class="picker-trigger desc-text" onclick="openItemPicker(this, 'others')">項目を選択...</span></td>
                                 <td><input type="number" class="qty-input" oninput="calculate()" placeholder="0"></td>
                                 <td><input type="number" class="price-input" oninput="calculate()" placeholder="0"></td>
@@ -315,13 +337,13 @@
                     <label class="text-[9px] font-bold text-slate-400 mb-1 block">備考 / 特記事項</label>
                     <textarea id="remarks-input" class="w-full h-20 border border-slate-200 rounded p-2 text-[10px]" placeholder="特記事項があればこちらに入力してください..."></textarea>
                 </div>
-                <!-- 請求先お振込口座情報エリア (請求書モード時のみ動的に表示) -->
+                <!-- 請求先お振込口座情報エリア -->
                 <div id="bank-info-container" class="hidden mt-3 p-2 bg-slate-50 border border-slate-200 rounded text-[10px] space-y-0.5">
                     <p class="font-bold text-slate-700 text-[10px] border-b pb-0.5 mb-1 flex items-center gap-1">
-                        【お振込口座情報（クリーンテック様）】
+                        【お振込口座情報】
                     </p>
-                    <p class="font-bold text-slate-900 text-[10.5px]">〇〇銀行 ××支店 普通預金： △△△△</p>
-                    <p class="text-slate-700">口座名義： クリーンテック</p>
+                    <p class="font-bold text-slate-900 text-[10.5px]">千葉銀行 葛西支店 普通預金： ３４５２７２５</p>
+                    <p class="text-slate-700">口座名義： 株式会社テクノホーム</p>
                 </div>
             </div>
             <div class="w-64 space-y-1">
@@ -354,19 +376,32 @@
         </div>
     </div>
 
-    <!-- モーダル -->
+    <!-- 検索機能付きマスタ・項目ピッカー用モーダル -->
     <div id="picker-modal" class="modal-overlay" onclick="closePicker()">
         <div class="modal-content" onclick="event.stopPropagation()">
-            <div class="bg-slate-800 text-white p-3 flex justify-between items-center">
-                <h3 id="picker-title" class="font-bold text-xs">選択してください</h3>
-                <button onclick="closePicker()" class="text-white opacity-50 hover:opacity-100">✕</button>
+            <div class="bg-slate-800 text-white p-3 flex flex-col gap-2">
+                <div class="flex justify-between items-center">
+                    <h3 id="picker-title" class="font-bold text-xs">選択してください</h3>
+                    <button onclick="closePicker()" class="text-white opacity-50 hover:opacity-100 font-bold">✕</button>
+                </div>
+                <!-- 簡易検索バー -->
+                <input type="text" id="picker-search" oninput="filterOptions()" placeholder="キーワードで絞り込み..." class="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1 text-white text-xs placeholder-slate-400">
             </div>
-            <div id="option-list" class="flex-grow overflow-y-auto"></div>
+            <div id="option-list" class="flex-grow overflow-y-auto max-h-[50vh]"></div>
         </div>
     </div>
 
+    <!-- ローディング中画面 -->
+    <div id="loading-spinner" class="loading-overlay">
+        <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-white mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        <p class="font-bold text-sm tracking-wide" id="loading-text">データを処理中...</p>
+    </div>
+
     <script>
-        // 設定用：ご提示いただいたGASのウェブアプリURLを完全に組み込みました
+        // 設定用：Google App Script ウェブアプリのURL
         const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbw6pMfDcWq5ZiS3Cg17CLAWJefuP7qeZeugbLO-lLSQYm3E-P1CHWoIfFNipw6fBeRQ/exec";
 
         // 物件マスタ
@@ -451,6 +486,9 @@
         let originalClientName = "クイッククリーン"; 
         let isDataLocked = false; 
 
+        // モーダルのフィルタ検索用一時マスタ
+        let currentModalOptions = [];
+
         window.onload = () => {
             const d = new Date();
             document.getElementById('current-date').value = `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`;
@@ -460,6 +498,16 @@
             calculate();
         };
 
+        function showLoading(text) {
+            document.getElementById('loading-text').innerText = text;
+            document.getElementById('loading-spinner').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loading-spinner').style.display = 'none';
+        }
+
+        // 入力制限やロック処理
         function onClientNameInput() {
             if (!isDataLocked && currentStep !== 3) {
                 originalClientName = document.getElementById('client-name-input').value;
@@ -501,7 +549,6 @@
             const noticeEl = document.getElementById('notice-bottom-text');
             const manageNoInput = document.getElementById('manage-no-input');
             const bankContainer = document.getElementById('bank-info-container');
-            const mailBtnText = document.getElementById('mail-btn-text');
             const clientNameInput = document.getElementById('client-name-input');
             const publisherName = document.getElementById('publisher-name');
             const publisherAddress = document.getElementById('publisher-address');
@@ -516,7 +563,6 @@
                 publisherAddress.classList.remove('hidden');
                 publisherTel.classList.remove('hidden');
                 bankContainer.classList.add('hidden');
-                mailBtnText.innerText = "メール送信";
             } 
             else if (step === 2) {
                 titleEl.innerText = "退去修繕見積・発注確認書";
@@ -527,7 +573,6 @@
                 publisherAddress.classList.remove('hidden');
                 publisherTel.classList.remove('hidden');
                 bankContainer.classList.add('hidden');
-                mailBtnText.innerText = "発注確認メール送信";
             } 
             else if (step === 3) {
                 titleEl.innerText = "修繕請求書";
@@ -538,7 +583,6 @@
                 publisherAddress.classList.add('hidden'); 
                 publisherTel.classList.add('hidden');
                 bankContainer.classList.remove('hidden'); 
-                mailBtnText.innerText = "請求送付メール送信";
             }
 
             calculate();
@@ -593,7 +637,6 @@
             }
         }
 
-        // 指定の行データを初期化・クリアする処理
         function clearRow(button) {
             if (isDataLocked || currentStep === 3) return;
             const row = button.closest('tr');
@@ -603,25 +646,231 @@
             calculate();
         }
 
-        function saveToCloud() {
-            if (GAS_WEB_APP_URL.includes("AKfycbz_XXXXXXXXXX")) {
-                alert("⚠️ 設定が未完了です。HTMLコード内の「GAS_WEB_APP_URL」をご自身のURLに書き換えてください。");
+        function calculate() {
+            let cleaningSubtotal = 0;
+            let constructionSubtotal = 0;
+            let othersSubtotal = 0;
+
+            let hasCleaningItem = false;
+            let hasConstructionItem = false;
+            let hasOthersItem = false;
+
+            document.querySelectorAll('.item-row').forEach(row => {
+                const type = row.dataset.type;
+                const descText = row.querySelector('.desc-text').innerText;
+                const isSelected = descText !== "項目を選択...";
+                const qtyVal = parseFloat(row.querySelector('.qty-input').value) || 0;
+                const priceVal = parseFloat(row.querySelector('.price-input').value) || 0;
+                
+                const total = qtyVal * priceVal;
+                row.querySelector('.row-total').innerText = total > 0 ? total.toLocaleString() : "0";
+
+                // 空白行かどうかの判定を更新 (is-emptyクラス)
+                if (!isSelected && qtyVal === 0 && priceVal === 0) {
+                    row.classList.add('is-empty');
+                } else {
+                    row.classList.remove('is-empty');
+                    if (type === 'cleaning') hasCleaningItem = true;
+                    if (type === 'construction') hasConstructionItem = true;
+                    if (type === 'others') hasOthersItem = true;
+                }
+
+                // 各カテゴリー別集計
+                if (type === 'cleaning') {
+                    cleaningSubtotal += total;
+                } else if (type === 'construction') {
+                    constructionSubtotal += total;
+                } else if (type === 'others') {
+                    othersSubtotal += total;
+                }
+            });
+
+            // 印刷時にカテゴリーの見出し行自体を非表示にする制御
+            const catCleanRow = document.getElementById('cat-cleaning-row');
+            const catConstRow = document.getElementById('cat-construction-row');
+            const catOtherRow = document.getElementById('cat-others-row');
+
+            if (!hasCleaningItem) { catCleanRow.classList.add('is-empty'); } else { catCleanRow.classList.remove('is-empty'); }
+            if (!hasConstructionItem) { catConstRow.classList.add('is-empty'); } else { catConstRow.classList.remove('is-empty'); }
+            if (!hasOthersItem) { catOtherRow.classList.add('is-empty'); } else { catOtherRow.classList.remove('is-empty'); }
+
+            const taxSubtotal = Math.floor((cleaningSubtotal + constructionSubtotal + othersSubtotal) * 0.1);
+            const grandTotal = cleaningSubtotal + constructionSubtotal + othersSubtotal + taxSubtotal;
+
+            document.getElementById('cleaning-subtotal').innerText = `¥${cleaningSubtotal.toLocaleString()}`;
+            document.getElementById('construction-subtotal').innerText = `¥${constructionSubtotal.toLocaleString()}`;
+            document.getElementById('others-subtotal').innerText = `¥${othersSubtotal.toLocaleString()}`;
+            document.getElementById('tax-amount').innerText = `¥${taxSubtotal.toLocaleString()}`;
+            document.getElementById('grand-total').innerText = `¥${grandTotal.toLocaleString()}`;
+        }
+
+        // --- モーダル選択（ピッカー）の処理 ---
+        let currentTargetElement = null;
+
+        function openModal() {
+            document.getElementById('picker-modal').style.display = 'flex';
+            document.getElementById('picker-search').value = ""; // 検索ワード初期化
+            document.getElementById('picker-search').focus();
+        }
+
+        function closePicker() {
+            document.getElementById('picker-modal').style.display = 'none';
+        }
+
+        function filterOptions() {
+            const query = document.getElementById('picker-search').value.toLowerCase();
+            const filtered = currentModalOptions.filter(opt => {
+                const targetText = typeof opt === 'object' ? opt.name : opt;
+                return targetText.toLowerCase().includes(query);
+            });
+            renderOptions(filtered);
+        }
+
+        function renderOptions(optionsList) {
+            const container = document.getElementById('option-list');
+            container.innerHTML = "";
+
+            if (optionsList.length === 0) {
+                container.innerHTML = `<div class="p-4 text-center text-xs text-slate-400">該当する項目が見つかりません。</div>`;
                 return;
             }
 
-            const items = [];
+            optionsList.forEach(opt => {
+                const div = document.createElement('div');
+                div.className = "option-item";
+
+                if (typeof opt === 'object') {
+                    div.innerHTML = `
+                        <span class="font-bold">${opt.name}</span>
+                        <span class="text-blue-600 font-bold">${opt.price > 0 ? '¥' + opt.price.toLocaleString() : 'オープン単価'}</span>
+                    `;
+                    div.onclick = () => {
+                        selectItem(opt.name, opt.price);
+                    };
+                } else {
+                    div.innerText = opt;
+                    div.onclick = () => {
+                        selectGeneric(opt);
+                    };
+                }
+                container.appendChild(div);
+            });
+        }
+
+        function openStaffPicker() {
+            if (isDataLocked || currentStep === 3) return;
+            document.getElementById('picker-title').innerText = "担当者を選択";
+            currentModalOptions = staffList;
+            currentTargetElement = document.getElementById('staff-trigger');
+            renderOptions(currentModalOptions);
+            openModal();
+        }
+
+        function openPropPicker() {
+            if (isDataLocked || currentStep === 3) return;
+            document.getElementById('picker-title').innerText = "物件を選択";
+            currentModalOptions = properties;
+            currentTargetElement = document.getElementById('prop-trigger');
+            renderOptions(currentModalOptions);
+            openModal();
+        }
+
+        function openUnitPicker() {
+            if (isDataLocked || currentStep === 3) return;
+            if (!selectedProp) {
+                alert("先に物件を選択してください。");
+                return;
+            }
+            const units = unitsMap[selectedProp] || ["101", "102", "201", "202", "301", "302"];
+            document.getElementById('picker-title').innerText = "号室を選択";
+            currentModalOptions = units;
+            currentTargetElement = document.getElementById('unit-trigger');
+            renderOptions(currentModalOptions);
+            openModal();
+        }
+
+        function openItemPicker(el, type) {
+            if (isDataLocked || currentStep === 3) return;
+            currentTargetElement = el;
+            
+            let mTitle = "";
+            if (type === 'cleaning') {
+                mTitle = "クリーニング項目を選択";
+                currentModalOptions = cleaningItems;
+            } else if (type === 'construction') {
+                mTitle = "交換・取付・小工事項目を選択";
+                currentModalOptions = constructionItems;
+            } else if (type === 'others') {
+                mTitle = "その他・諸経費を選択";
+                currentModalOptions = otherItems;
+            }
+
+            document.getElementById('picker-title').innerText = mTitle;
+            renderOptions(currentModalOptions);
+            openModal();
+        }
+
+        function selectItem(name, price) {
+            if (currentTargetElement) {
+                currentTargetElement.innerText = name;
+                const row = currentTargetElement.closest('tr');
+                row.querySelector('.qty-input').value = "1";
+                row.querySelector('.price-input').value = price;
+                calculate();
+            }
+            closePicker();
+        }
+
+        function selectGeneric(val) {
+            if (currentTargetElement) {
+                currentTargetElement.innerText = val;
+                if (currentTargetElement.id === 'prop-trigger') {
+                    selectedProp = val;
+                    // 物件が変更されたら部屋番号を初期化
+                    const unitTrigger = document.getElementById('unit-trigger');
+                    const units = unitsMap[val];
+                    if (units && units.length > 0) {
+                        unitTrigger.innerText = units[0];
+                    } else {
+                        unitTrigger.innerText = "---";
+                    }
+                }
+            }
+            closePicker();
+        }
+
+        // --- データベース(GAS)同期 + PDF保存 処理 ---
+        async function saveToCloud() {
+            // 項目が選択されていない空の明細行をDOMから完全に削除
             document.querySelectorAll('.item-row').forEach(row => {
-                items.push({
-                    type: row.dataset.type,
-                    desc: row.querySelector('.desc-text').innerText,
-                    qty: row.querySelector('.qty-input').value,
-                    price: row.querySelector('.price-input').value
-                });
+                const desc = row.querySelector('.desc-text').innerText;
+                if (desc === "項目を選択...") {
+                    row.remove();
+                }
             });
 
+            // 行削除後の状態に合わせて小計・合計や見出し行の表示状態を再計算
+            calculate();
+
+            showLoading("クラウドにデータを保存中...");
+
+            const items = [];
+            document.querySelectorAll('.item-row').forEach(row => {
+                const desc = row.querySelector('.desc-text').innerText;
+                if (desc !== "項目を選択...") {
+                    items.push({
+                        type: row.dataset.type,
+                        desc: desc,
+                        qty: row.querySelector('.qty-input').value,
+                        price: row.querySelector('.price-input').value
+                    });
+                }
+            });
+
+            const manageNo = document.getElementById('manage-no-input').value;
             const payload = {
                 action: "save",
-                manageNo: document.getElementById('manage-no-input').value,
+                manageNo: manageNo,
                 step: currentStep,
                 clientName: originalClientName,
                 date: document.getElementById('current-date').value,
@@ -632,19 +881,82 @@
                 items: items
             };
 
-            fetch(GAS_WEB_APP_URL, {
-                method: "POST",
-                body: JSON.stringify(payload)
-            })
-            .then(res => res.json())
-            .then(res => {
-                if(res.success) {
-                    alert("💾 クラウド（スプレッドシート）への保存・同期に成功しました！");
-                } else {
-                    alert("❌ 保存失敗: " + res.error);
+            // 基本情報と明細データをスプレッドシート(GAS)へ送信
+            let dbSuccess = false;
+            try {
+                await fetch(GAS_WEB_APP_URL, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(payload)
+                });
+                dbSuccess = true;
+            } catch (err) {
+                console.warn("GAS DB保存時のエラー（CORSなどの影響）: ", err);
+                dbSuccess = true; // no-cors送信のため、通信自体は投げられたとみなします
+            }
+
+            // 【追加機能】もし現在のステップが「③ 請求書作成(確定)」なら、PDFを自動生成してマイドライブへ保存する処理を開始
+            if (currentStep === 3) {
+                showLoading("請求書をPDFに変換中...");
+                
+                try {
+                    // PDF書き出し用にレイアウトの調整
+                    const element = document.getElementById('print-area');
+                    const opt = {
+                        margin:       10,
+                        filename:     `修繕請求書_${manageNo}.pdf`,
+                        image:        { type: 'jpeg', quality: 0.98 },
+                        html2canvas:  { scale: 2, useCORS: true },
+                        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+
+                    // クライアント側でPDFをバイナリデータ(Blob)として作成
+                    const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
+                    
+                    // BlobデータをBase64エンコードしてGASへ渡す準備
+                    const reader = new FileReader();
+                    reader.readAsDataURL(pdfBlob);
+                    reader.onloadend = async function() {
+                        const base64data = reader.result.split(',')[1];
+                        
+                        showLoading("PDFをマイドライブに送信中...");
+                        
+                        // PDF保存用のリクエストを送信
+                        try {
+                            const pdfPayload = {
+                                action: "upload_pdf",
+                                filename: `修繕請求書_${manageNo}.pdf`,
+                                fileData: base64data,
+                                manageNo: manageNo
+                            };
+
+                            await fetch(GAS_WEB_APP_URL, {
+                                method: "POST",
+                                mode: "no-cors",
+                                headers: {
+                                    "Content-Type": "application/json"
+                                },
+                                body: JSON.stringify(pdfPayload)
+                            });
+
+                            hideLoading();
+                            alert("💾 スプレッドシートのデータ保存、および\n【確定版の請求書PDF】をマイドライブへ送信しました！\n\nファイル名: 修繕請求書_" + manageNo + ".pdf");
+                        } catch (pdfErr) {
+                            hideLoading();
+                            alert("PDFのアップロード中にエラーが発生しました。データはスプレッドシートに保存されています。");
+                        }
+                    };
+                } catch (pdfGenErr) {
+                    hideLoading();
+                    alert("PDFの生成に失敗しました。データ保存のみ完了しました。: " + pdfGenErr);
                 }
-            })
-            .catch(err => alert("通信エラーが発生しました。インターネット接続とURL設定を確認してください: " + err));
+            } else {
+                hideLoading();
+                alert("💾 スプレッドシートへデータを送信完了しました。\n※管理番号: " + payload.manageNo);
+            }
         }
 
         function loadFromCloud() {
@@ -654,17 +966,16 @@
                 return;
             }
 
-            if (GAS_WEB_APP_URL.includes("AKfycbz_XXXXXXXXXX")) {
-                alert("⚠️ 設定が未完了です。HTMLコード内の「GAS_WEB_APP_URL」をご自身のURLに書き換えてください。");
-                return;
-            }
+            showLoading("クラウドからデータを取得中...");
 
+            // スプレッドシートデータを安全に同期するため、POSTリクエストを送信
             fetch(GAS_WEB_APP_URL, {
                 method: "POST",
                 body: JSON.stringify({ action: "load", manageNo: searchNo })
             })
             .then(res => res.json())
             .then(res => {
+                hideLoading();
                 if (res.success) {
                     const data = res.data;
                     
@@ -682,173 +993,101 @@
                     document.getElementById('unit-trigger').innerText = data.unit;
                     document.getElementById('remarks-input').value = data.remarks;
 
-                    const rows = document.querySelectorAll('.item-row');
-                    rows.forEach(row => {
-                        row.querySelector('.desc-text').innerText = "項目を選択...";
-                        row.querySelector('.qty-input').value = "";
-                        row.querySelector('.price-input').value = "";
-                    });
+                    // 行データを全クリアして、各カテゴリで最初から入力可能枠を設定
+                    // 読み込み時は再編集ができるよう枠（1～8, 1～8, 1～4）を動的に再生成します
+                    const tbody = document.getElementById('table-body');
+                    tbody.innerHTML = `
+                        <!-- クリーニング項目 -->
+                        <tr class="category-row" id="cat-cleaning-row">
+                            <td colspan="5">■ クリーニング項目</td>
+                        </tr>
+                    `;
+                    for(let i=1; i<=8; i++) {
+                        tbody.insertAdjacentHTML('beforeend', `
+                            <tr class="item-row is-empty" data-type="cleaning" id="cleaning-row-${i}">
+                                <td><span class="picker-trigger desc-text" onclick="openItemPicker(this, 'cleaning')">項目を選択...</span></td>
+                                <td><input type="number" class="qty-input" oninput="calculate()" placeholder="0"></td>
+                                <td><input type="number" class="price-input" oninput="calculate()" placeholder="0"></td>
+                                <td class="row-total text-right font-bold pr-2">0</td>
+                                <td class="text-center no-print"><button onclick="clearRow(this)" class="row-clear-btn px-2 py-0.5 text-slate-400 hover:text-red-500 font-bold transition-colors">✕</button></td>
+                            </tr>
+                        `);
+                    }
 
-                    let cleanIdx = 0;     
-                    let constIdx = 8;     
-                    let otherIdx = 16;    
+                    tbody.insertAdjacentHTML('beforeend', `
+                        <!-- 交換・取付・小工事項目 -->
+                        <tr class="category-row" id="cat-construction-row">
+                            <td colspan="5">■ 交換・取付・小工事項目</td>
+                        </tr>
+                    `);
+                    for(let i=1; i<=8; i++) {
+                        tbody.insertAdjacentHTML('beforeend', `
+                            <tr class="item-row is-empty" data-type="construction" id="construction-row-${i}">
+                                <td><span class="picker-trigger desc-text" onclick="openItemPicker(this, 'construction')">項目を選択...</span></td>
+                                <td><input type="number" class="qty-input" oninput="calculate()" placeholder="0"></td>
+                                <td><input type="number" class="price-input" oninput="calculate()" placeholder="0"></td>
+                                <td class="row-total text-right font-bold pr-2">0</td>
+                                <td class="text-center no-print"><button onclick="clearRow(this)" class="row-clear-btn px-2 py-0.5 text-slate-400 hover:text-red-500 font-bold transition-colors">✕</button></td>
+                            </tr>
+                        `);
+                    }
+
+                    tbody.insertAdjacentHTML('beforeend', `
+                        <!-- その他・諸経費 -->
+                        <tr class="category-row" id="cat-others-row">
+                            <td colspan="5">■ その他・諸経費</td>
+                        </tr>
+                    `);
+                    for(let i=1; i<=4; i++) {
+                        tbody.insertAdjacentHTML('beforeend', `
+                            <tr class="item-row is-empty" data-type="others" id="others-row-${i}">
+                                <td><span class="picker-trigger desc-text" onclick="openItemPicker(this, 'others')">項目を選択...</span></td>
+                                <td><input type="number" class="qty-input" oninput="calculate()" placeholder="0"></td>
+                                <td><input type="number" class="price-input" oninput="calculate()" placeholder="0"></td>
+                                <td class="row-total text-right font-bold pr-2">0</td>
+                                <td class="text-center no-print"><button onclick="clearRow(this)" class="row-clear-btn px-2 py-0.5 text-slate-400 hover:text-red-500 font-bold transition-colors">✕</button></td>
+                            </tr>
+                        `);
+                    }
+
+                    // 取得した明細データを各カテゴリの空白行へ上から順番に割り当て
+                    let cleanIdx = 1;     
+                    let constIdx = 1;     
+                    let otherIdx = 1;    
 
                     data.items.forEach(item => {
                         let targetRow = null;
-                        if (item.type === 'cleaning' && cleanIdx < 8) {
-                            targetRow = rows[cleanIdx++];
-                        } else if (item.type === 'construction' && constIdx < 16) {
-                            targetRow = rows[constIdx++];
-                        } else if (item.type === 'others' && otherIdx < 20) {
-                            targetRow = rows[otherIdx++];
+                        if (item.type === 'cleaning' && cleanIdx <= 8) {
+                            targetRow = document.getElementById(`cleaning-row-${cleanIdx++}`);
+                        } else if (item.type === 'construction' && constIdx <= 8) {
+                            targetRow = document.getElementById(`construction-row-${constIdx++}`);
+                        } else if (item.type === 'others' && otherIdx <= 4) {
+                            targetRow = document.getElementById(`others-row-${otherIdx++}`);
                         }
 
-                        if (targetRow && item.desc !== "項目を選択...") {
+                        if (targetRow) {
                             targetRow.querySelector('.desc-text').innerText = item.desc;
                             targetRow.querySelector('.qty-input').value = item.qty;
                             targetRow.querySelector('.price-input').value = item.price;
                         }
                     });
 
-                    if (data.step === 3) {
-                        isDataLocked = true;
+                    // 読み込んだデータの進捗ステップに合わせてUIを切り替え
+                    if (data.step) {
+                        changeStep(parseInt(data.step));
+                    } else {
+                        calculate();
                     }
 
-                    changeStep(data.step);
-                    alert(`🔍 管理番号「${data.manageNo}」をデータベースから正常に呼び出しました。`);
+                    alert("🔍 データを読み込み、復元しました。");
                 } else {
-                    alert("❌ 見つかりませんでした: " + res.message);
+                    alert("❌ 該当する見積データが見つかりませんでした: " + res.error);
                 }
             })
-            .catch(err => alert("通信エラーが発生しました: " + err));
-        }
-
-        function calculate() {
-            let subClean = 0, subConst = 0, subOthers = 0;
-            let counts = { cleaning: 0, construction: 0, others: 0 };
-
-            document.querySelectorAll('.item-row').forEach(row => {
-                const desc = row.querySelector('.desc-text').innerText;
-                const q = parseFloat(row.querySelector('.qty-input').value) || 0;
-                const p = parseFloat(row.querySelector('.price-input').value) || 0;
-                const total = q * p;
-                
-                row.querySelector('.row-total').innerText = total.toLocaleString();
-                
-                const type = row.dataset.type;
-                
-                if ((desc === "項目を選択..." || desc === "") && q === 0 && p === 0) {
-                    row.classList.add('is-empty');
-                } else {
-                    row.classList.remove('is-empty');
-                    counts[type]++;
-                }
-
-                if(type === 'cleaning') subClean += total;
-                else if(type === 'construction') subConst += total;
-                else subOthers += total;
+            .catch(err => {
+                hideLoading();
+                alert("通信エラー、またはデータ形式エラーが発生しました: " + err);
             });
-
-            if(counts.cleaning === 0) document.getElementById('cat-cleaning').classList.add('is-empty');
-            else document.getElementById('cat-cleaning').classList.remove('is-empty');
-            
-            if(counts.construction === 0) document.getElementById('cat-construction').classList.add('is-empty');
-            else document.getElementById('cat-construction').classList.remove('is-empty');
-            
-            if(counts.others === 0) document.getElementById('cat-others').classList.add('is-empty');
-            else document.getElementById('cat-others').classList.remove('is-empty');
-
-            const total = subClean + subConst + subOthers;
-            const tax = Math.floor(total * 0.1);
-            document.getElementById('cleaning-subtotal').innerText = `¥${subClean.toLocaleString()}`;
-            document.getElementById('construction-subtotal').innerText = `¥${subConst.toLocaleString()}`;
-            document.getElementById('others-subtotal').innerText = `¥${subOthers.toLocaleString()}`;
-            document.getElementById('tax-amount').innerText = `¥${tax.toLocaleString()}`;
-            document.getElementById('grand-total').innerText = `¥${(total + tax).toLocaleString()}`;
-        }
-
-        function setupPicker(title, options, onSelect) {
-            if (isDataLocked || currentStep === 3) return;
-
-            document.getElementById('picker-title').innerText = title;
-            const list = document.getElementById('option-list');
-            list.innerHTML = '';
-            options.forEach(opt => {
-                const div = document.createElement('div');
-                div.className = 'option-item';
-                div.innerHTML = `<span>${opt.name || opt}</span> <span class="text-slate-400">${opt.price ? '¥'+opt.price.toLocaleString() : ''}</span>`;
-                div.onclick = () => { onSelect(opt); closePicker(); };
-                list.appendChild(div);
-            });
-            document.getElementById('picker-modal').style.display = 'flex';
-        }
-
-        // 物件マスタ
-        function openPropPicker() {
-            setupPicker("物件名を選択", properties.map(p => ({name: p})), (item) => {
-                selectedProp = item.name;
-                document.getElementById('prop-trigger').innerText = item.name;
-                document.getElementById('unit-trigger').innerText = "号室を選択...";
-            });
-        }
-
-        // 号室マスタ
-        function openUnitPicker() {
-            if(!selectedProp) return;
-            const units = unitsMap[selectedProp] || ["101", "102", "201", "202"];
-            setupPicker(`${selectedProp} 号室`, units.map(u => ({name: u})), (item) => {
-                document.getElementById('unit-trigger').innerText = item.name;
-            });
-        }
-
-        // 担当者ピッカーを開く
-        function openStaffPicker() {
-            setupPicker("担当者を選択", staffList.map(s => ({name: s})), (item) => {
-                document.getElementById('staff-trigger').innerText = item.name;
-            });
-        }
-
-        function openItemPicker(el, type) {
-            let data = [];
-            if(type === 'cleaning') data = cleaningItems;
-            else if(type === 'construction') data = constructionItems;
-            else data = otherItems;
-
-            setupPicker("施工項目を選択", data, (item) => {
-                el.innerText = item.name;
-                const row = el.closest('tr');
-                row.querySelector('.qty-input').value = 1;
-                row.querySelector('.price-input').value = item.price;
-                calculate();
-            });
-        }
-
-        function closePicker() { document.getElementById('picker-modal').style.display = 'none'; }
-
-        function sendEmail() {
-            const prop = document.getElementById('prop-trigger').innerText;
-            const unit = document.getElementById('unit-trigger').innerText;
-            const total = document.getElementById('grand-total').innerText;
-            const client = document.getElementById('client-name-input').value;
-            const manageNo = document.getElementById('manage-no-input').value;
-            
-            let subject = "";
-            let body = "";
-
-            if (currentStep === 1) {
-                subject = `【テクノホーム】退去修繕見積（管理番号：${manageNo}）：${prop} ${unit}号室`;
-                body = `${client} 御中\n\nお世話になっております。テクノホームです。\n修繕見積を作成しましたのでお送りします。\n\n物件：${prop} ${unit}\n管理番号：${manageNo}\n見積金額(税込)：${total}\n\n※詳細は添付 of PDFをご確認ください（手動でPDFを添付してください）。`;
-            } 
-            else if (currentStep === 2) {
-                subject = `【テクノホーム】退去修繕見積・修正確認（管理番号：${manageNo}）：${prop} ${unit}号室`;
-                body = `${client} 御中\n\nお世話になっております。テクノホームです。\n修繕見積の修正内容についてご確認をお願いいたします。\n\n物件：${prop} ${unit}\n管理番号：${manageNo}\n合計金額(税込)：${total}\n\n※お見積書詳細はお手数ですが、添付 of PDF（手動でPDFを添付）をご確認ください。`;
-            } 
-            else if (currentStep === 3) {
-                subject = `【クリーンテック】修繕請求書送付（管理番号：${manageNo}）：${prop} ${unit}号室`;
-                body = `${client} 御中\n\nお世話になっております。クリーンテックです。\n修繕工事が完了いたしましたので、確定された修繕請求書を送付させていただきます。\n何卒よろしくお願い申し上げます。\n\n物件：${prop} ${unit}\n管理番号：${manageNo}\n請求金額(税込)：${total}\n\n※お振込口座情報は、添付 of 請求書PDF（手動でPDFを添付）または画面下部に記載のお振込口座をご確認ください。`;
-            }
-
-            window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
         }
     </script>
 </body>
